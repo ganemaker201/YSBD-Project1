@@ -21,7 +21,7 @@
 void insert_records(){
 
   int file_handle;
-  HeapFileHeader* header_info=NULL;
+  HeapFileHeader* header_info =NULL;
   HeapFile_Open(FILE_NAME, &file_handle,&header_info);
   srand(12569874);
   printf("Insert records\n");
@@ -56,8 +56,18 @@ void search_records(){
 int main() {
   BF_Init(LRU);
   HeapFile_Create(FILE_NAME);
-  insert_records();
-  search_records();
+  
+  int file_handle;
+  HeapFileHeader * header_info=NULL;
+  HeapFile_Open(FILE_NAME, &file_handle,&header_info);
+  
+  printf("%d\n",header_info->number_of_blocks);
 
-  BF_Close();
+  HeapFile_Close(file_handle,header_info);
+  // insert_records();
+  // search_records();
+
+  // BF_Close();
+
+  return 0;
 }
