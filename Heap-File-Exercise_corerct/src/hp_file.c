@@ -46,10 +46,8 @@ int HeapFile_Create(const char* fileName)
 
   rec->size_of_record =  sizeof(Record);
   rec->records_per_block = BF_BLOCK_SIZE/sizeof(Record);
-  rec->last_free_block = 0 ;
   rec->last_free_record = 0;
-  
- 
+
 
   BF_Block_SetDirty(block);
 
@@ -89,7 +87,12 @@ int HeapFile_Close(int file_handle, HeapFileHeader * hp_info)
 
   BF_Block_Init(&block);
 
-  for (int i = 0;i < hp_info->last_free_block;i++ ){
+  int blocks_num;
+  
+  CALL_BF(BF_GetBlockCounter(file_handle, &blocks_num),0);
+
+
+  for (int i = 0;i < blocks_num;i++ ){
     
     CALL_BF(BF_GetBlock(file_handle, i, block), 0);  // get block 0 (header)
     CALL_BF(BF_UnpinBlock(block), 0);
@@ -115,45 +118,48 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 
   void * data;
 
+  int blocks_num;
+  
+  CALL_BF(BF_GetBlockCounter(file_handle, &blocks_num),0);
 
-  if (hp_info->last_free_block == 0) {
+
+  printf("Blocks num : %d\n",blocks_num);
+  
+  if (blocks_num == 1) {
     printf("Initializing 1st block \n");
     
     CALL_BF(BF_AllocateBlock(file_handle, block),0);
-
-    hp_info->last_free_block += 1;
+    
+    blocks_num += 1 ;
+    hp_info->last_free_record = 0;
 
   }else{
-    if (hp_info->last_free_record >= hp_info->records_per_block) {
+    if (hp_info->last_free_record > hp_info->records_per_block - 1 ) {
       printf("Allocating new block \n");
       
       CALL_BF(BF_AllocateBlock(file_handle, block),0);
 
-     
+      blocks_num += 1 ;
       hp_info->last_free_record = 0;
-      hp_info->last_free_block += 1;
 
     }
   }
-  
 
-  CALL_BF(BF_GetBlock(file_handle, hp_info->last_free_block, block), 0);  
+  CALL_BF(BF_GetBlock(file_handle, blocks_num-1, block), 0);  
 
   data = BF_Block_GetData(block);  
 
-  Record* rec = data;                         // Ο δείκτης rec δείχνει στην αρχή της περιοχής μνήμης data
+  Record* rec = data;                         
   
   rec[hp_info->last_free_record] = record;
-
-  hp_info->last_free_record += 1;
-
-
- // printRecord(rec[hp_info->last_free_record]);
 
   BF_Block_SetDirty(block);
 
   CALL_BF(BF_UnpinBlock(block), 0);
-  
+
+  hp_info->last_free_record += 1;
+
+
   BF_Block_Destroy(&block);
 
   return 1;

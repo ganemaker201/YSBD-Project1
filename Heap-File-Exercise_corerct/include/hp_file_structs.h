@@ -18,7 +18,6 @@
 typedef struct HeapFileHeader {
     unsigned int size_of_record ;
     unsigned int records_per_block;
-    unsigned int last_free_block;
     unsigned int last_free_record;
 
 } HeapFileHeader;

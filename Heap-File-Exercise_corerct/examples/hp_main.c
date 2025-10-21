@@ -5,7 +5,7 @@
 #include "hp_file_structs.h"
 #include "hp_file_funcs.h"
 
-#define RECORDS_NUM 1000 // you can change it if you want
+#define RECORDS_NUM 100 // you can change it if you want
 #define FILE_NAME "data.db"
 
 #define CALL_OR_DIE(call)     \
@@ -16,6 +16,7 @@
       exit(code);             \
     }                         \
   }
+
 
 
 void insert_records(){
@@ -29,6 +30,7 @@ void insert_records(){
     HeapFile_InsertRecord(file_handle,header_info, randomRecord());
     
   }
+
   HeapFile_Close(file_handle,header_info);
 }
 
@@ -62,7 +64,7 @@ int main() {
   HeapFileHeader * header_info=NULL;
   HeapFile_Open(FILE_NAME, &file_handle,&header_info);
   
-  printf("%d\n",header_info->last_free_block);
+  // printf("%d\n",header_info->last_free_block);
 
   HeapFile_Close(file_handle,header_info);
   insert_records();
