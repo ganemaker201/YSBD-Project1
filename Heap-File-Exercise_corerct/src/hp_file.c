@@ -169,6 +169,52 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* header_info, int id)
 {
   HeapFileIterator out;
+
+  BF_Block *curent_block;
+  void *data;
+
+  BF_Block_Init(&curent_block);
+  int block_num;
+
+  CALL_BF(BF_GetBlockCounter(file_handle, &block_num), out);
+
+  for (int i; i < block_num; i++)
+  {
+    CALL_BF(BF_GetBlock(file_handle, i, curent_block), out);
+    data = BF_Block_GetData(curent_block);
+
+    Record *rec = data;
+    // if the last block
+    if (block_num - 1 == i)
+    {
+      for (int j; j < header_info->last_free_record; j++)
+      {
+        rec = data + j * header_info->size_of_record;
+        if (rec->id == id)
+        {
+          // change to the data that is needed
+          return out;
+        }
+      }
+    }
+    else
+    {
+
+      for (int j; j < header_info->records_per_block; j++)
+      {
+        rec = data + j * header_info->size_of_record;
+        if (rec->id == id)
+        {
+
+          // change to the data that is needed
+          return out;
+        }
+      }
+    }
+  }
+
+  // detroy not needed data
+
   return out;
 }
 
