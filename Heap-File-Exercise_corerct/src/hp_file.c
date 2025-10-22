@@ -122,26 +122,23 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   
   CALL_BF(BF_GetBlockCounter(file_handle, &blocks_num),0);
 
+  if (blocks_num == 1)
+  {
 
-  printf("Blocks num : %d\n",blocks_num);
-  
-  if (blocks_num == 1) {
-    printf("Initializing 1st block \n");
-    
     CALL_BF(BF_AllocateBlock(file_handle, block),0);
     
     blocks_num += 1 ;
     hp_info->last_free_record = 0;
+  }
+  else
+  {
+    if (hp_info->last_free_record > hp_info->records_per_block - 1)
+    {
 
-  }else{
-    if (hp_info->last_free_record > hp_info->records_per_block - 1 ) {
-      printf("Allocating new block \n");
-      
       CALL_BF(BF_AllocateBlock(file_handle, block),0);
 
       blocks_num += 1 ;
       hp_info->last_free_record = 0;
-
     }
   }
 
@@ -170,58 +167,49 @@ HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* he
 {
   HeapFileIterator out;
 
-  BF_Block *curent_block;
-  void *data;
-
-  BF_Block_Init(&curent_block);
-  int block_num;
-
-  CALL_BF(BF_GetBlockCounter(file_handle, &block_num), out);
-
-  for (int i; i < block_num; i++)
-  {
-    CALL_BF(BF_GetBlock(file_handle, i, curent_block), out);
-    data = BF_Block_GetData(curent_block);
-
-    Record *rec = data;
-    // if the last block
-    if (block_num - 1 == i)
-    {
-      for (int j; j < header_info->last_free_record; j++)
-      {
-        rec = data + j * header_info->size_of_record;
-        if (rec->id == id)
-        {
-          // change to the data that is needed
-          return out;
-        }
-      }
-    }
-    else
-    {
-
-      for (int j; j < header_info->records_per_block; j++)
-      {
-        rec = data + j * header_info->size_of_record;
-        if (rec->id == id)
-        {
-
-          // change to the data that is needed
-          return out;
-        }
-      }
-    }
-  }
-
-  // detroy not needed data
-
+  out.file_handle = file_handle;
+  out.header_info = header_info;
+  out.id = id;
+  out.current_block = 1; // block 0 is header data starts at block 1
+  out.current_record = 0;
   return out;
 }
 
-
-int HeapFile_GetNextRecord(    HeapFileIterator* heap_iterator, Record** record)
+int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
 {
-    * record=NULL;
-    return 1;
-}
+  *record = NULL;
+  BF_Block *block;
+  Record *current_record;
+  char *data;
+  unsigned int number_of_blocks;
+  CALL_BF(BF_GetBlockCounter(heap_iterator->file_handle, &number_of_blocks), 0);
+  do
+  {
+    BF_Block_Init(&block);
+    CALL_BF(BF_GetBlock(heap_iterator->file_handle, heap_iterator->current_block, block), 0);
+    data = BF_Block_GetData(block);
+    current_record = (Record *)(data + heap_iterator->current_record * heap_iterator->header_info->size_of_record);
+    if (current_record->id == heap_iterator->id)
+    {
+      *record = current_record;
+    }
 
+    if (heap_iterator->current_record + 1 >= heap_iterator->header_info->records_per_block)
+    {
+      if (heap_iterator->current_block + 1 == number_of_blocks)
+      {
+        BF_Block_Destroy(&block);
+        return 0;
+      }
+      heap_iterator->current_block += 1;
+      heap_iterator->current_record = 0;
+    }
+    else
+    {
+      heap_iterator->current_record += 1;
+    }
+  } while (*record == NULL);
+
+  BF_Block_Destroy(&block);
+  return 1;
+}

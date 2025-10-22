@@ -68,6 +68,7 @@ int main() {
 
   HeapFile_Close(file_handle,header_info);
   insert_records();
+  search_records();
   // search_records();
 
   BF_Close();
