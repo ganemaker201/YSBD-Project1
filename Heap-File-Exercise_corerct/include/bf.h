@@ -16,7 +16,7 @@ extern "C" {
 
 #define BF_BLOCK_SIZE 512      /**< Size of each block in bytes */
 #define BF_BUFFER_SIZE 100     /**< Maximum number of blocks held in memory */
-#define BF_MAX_OPEN_FILES 100  /**< Maximum number of open files */
+#define BF_MAX_OPEN_FILES 1  /**< Maximum number of open files */
 
 /* -------------------------------------------------------------------------- */
 /*                                 Error Codes                                */

@@ -5,7 +5,7 @@
 #include "hp_file_structs.h"
 #include "hp_file_funcs.h"
 
-#define RECORDS_NUM 100 // you can change it if you want
+#define RECORDS_NUM 1 // you can change it if you want
 #define FILE_NAME "data.db"
 
 #define CALL_OR_DIE(call)     \
@@ -17,8 +17,6 @@
     }                         \
   }
 
-
-
 void insert_records(){
 
   int file_handle;
@@ -27,10 +25,9 @@ void insert_records(){
   srand(12569874);
   printf("Insert records\n");
   for (int id = 0; id < RECORDS_NUM; ++id) {
-    HeapFile_InsertRecord(file_handle,header_info, randomRecord());
-    
+    Record rec = randomRecord();
+    HeapFile_InsertRecord(file_handle,header_info,rec);
   }
-
   HeapFile_Close(file_handle,header_info);
 }
 
@@ -38,9 +35,9 @@ void search_records(){
   int file_handle;
   HeapFileHeader* header_info=NULL;
   HeapFile_Open(FILE_NAME, &file_handle,&header_info);
-  int id = 168;
+  int id = 598;
   printf("Print records with id=%d\n",id);
-  HeapFileIterator iterator = HeapFile_CreateIterator(file_handle,header_info,168);
+  HeapFileIterator iterator = HeapFile_CreateIterator(file_handle,header_info,id);
   Record ans;
   Record* answer = &ans;
 
@@ -59,17 +56,11 @@ void search_records(){
 int main() {
   BF_Init(LRU);
   HeapFile_Create(FILE_NAME);
-  
-  int file_handle;
-  HeapFileHeader * header_info=NULL;
-  HeapFile_Open(FILE_NAME, &file_handle,&header_info);
-  
-  // printf("%d\n",header_info->last_free_block);
 
-  HeapFile_Close(file_handle,header_info);
   insert_records();
+
   search_records();
-  // search_records();
+ 
 
   BF_Close();
 
