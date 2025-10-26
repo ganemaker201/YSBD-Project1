@@ -29,6 +29,7 @@ int HeapFile_Create(const char* fileName)
 
   int file_handle;
 
+  //creating and opening the file to store file header
   CALL_BF(BF_CreateFile(fileName),0);
   
   CALL_BF(BF_OpenFile(fileName, &file_handle),0); 
@@ -36,85 +37,80 @@ int HeapFile_Create(const char* fileName)
   BF_Block *block;
 
   BF_Block_Init(&block);
-  
+
+  //allocate block to write our first data
   CALL_BF(BF_AllocateBlock(file_handle, block),0);
 
-  //GETTING DATA POINTER TO PUT FILE HEADER INFO 
+  //Getting data pointer to put file header info in file
   data = BF_Block_GetData(block); 
 
   HeapFileHeader * rec = data;  
 
+  //initializing header info
   rec->size_of_record =  sizeof(Record);
   rec->records_per_block = BF_BLOCK_SIZE/sizeof(Record);
   rec->last_free_record = 0;
 
+  //since we changed the block set it dirty
+  //and unpin it from buffer to reuse memory
   BF_Block_SetDirty(block);
   CALL_BF(BF_UnpinBlock(block),0);
 
+  //free block memory and close file
   BF_Block_Destroy(&block);
   CALL_BF(BF_CloseFile(file_handle),0);  
 
   return 1;
 }
 
+//global variable for how many files are opened at the same time 
 int Opened = 0;
 
 int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** header_info)
 {
 
+  //if we have exceeded opened files limit then print error
   if (Opened >= BF_MAX_OPEN_FILES){
       printf("Error: Maximum number of open files reached\n");
       return 0;
   }
 
+  //open file
   CALL_BF(BF_OpenFile(fileName, file_handle), 0);
 
+  //store header in buffer
   BF_Block * block;
 
   BF_Block_Init(&block);              
 
-  CALL_BF(BF_GetBlock(*file_handle, 0, block), 0);  // get block 0 (header)
+  // get block 0 (header)
+  CALL_BF(BF_GetBlock(*file_handle, 0, block), 0);
 
-  *header_info = (HeapFileHeader *) BF_Block_GetData(block);  // pointer to HeapFileHeader
+  // pointer to HeapFileHeader
+  *header_info = (HeapFileHeader *) BF_Block_GetData(block);
 
+  HeapFileHeader *temp = (HeapFileHeader *) BF_Block_GetData(block);
+  *header_info = malloc(sizeof(HeapFileHeader));
+  memcpy(*header_info, temp, sizeof(HeapFileHeader));
+
+
+  CALL_BF(BF_UnpinBlock(block), 0);
   BF_Block_Destroy(&block);
 
+  //if opened successfully increase counter
   Opened += 1;
 
   return 1;
 
 }
 
-int HeapFile_Close(int file_handle, HeapFileHeader * hp_info)
+int HeapFile_Close(int file_handle)
 {
-  
-
-  BF_Block * block;
-
-  BF_Block_Init(&block);
-
-  int blocks_num;
-  
-  CALL_BF(BF_GetBlockCounter(file_handle, &blocks_num),0);
-
-
-  for (int i = 0;i < blocks_num;i++ ){
-    
-    CALL_BF(BF_GetBlock(file_handle, i, block), 0);  // get block 0 (header)
-    CALL_BF(BF_UnpinBlock(block), 0);
-    
-  }
-
-  BF_Block_Destroy(&block);
-  
-
-  CALL_BF(BF_CloseFile(file_handle),0);
-
-  Opened -= 1;
-
-  return 1;
-
+    CALL_BF(BF_CloseFile(file_handle), 0);
+    Opened -= 1;
+    return 1;
 }
+
 
 
 int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record record)
@@ -223,6 +219,7 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     {
       if (heap_iterator->current_block  == number_of_blocks - 1)
       {
+         CALL_BF(BF_UnpinBlock(block), 0);
         BF_Block_Destroy(&block);
         return 0;
       }
@@ -233,8 +230,10 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     {
       heap_iterator->current_record += 1;
     }
+    
   } while (*record == NULL);
 
+   CALL_BF(BF_UnpinBlock(block), 0);
   BF_Block_Destroy(&block);
 
   return 1;
