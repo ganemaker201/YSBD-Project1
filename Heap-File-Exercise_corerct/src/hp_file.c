@@ -206,15 +206,16 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     rec = (Record *)data;
     
     /*traverse curent block records one by one to see if the id exists
-    if found store it to the pointer otherwise continue with the next
-    record.If the index of records in our current block exceeds it's 
-    capacity then we have to go to the next block and reinitialize 
-    current_record  to 0.If we are in the last block of the file and
-    we have traversed all of its records then the specific id doesnt 
-    exists.*/
+    if found allocate memory to heap and store it to the pointer content
+    otherwise continue with the next record.If the index of records in 
+    our current block exceeds it's capacity then we have to go to the 
+    next block and reinitialize current_record  to 0.If we are in the 
+    last block of the file and we have traversed all of its records then 
+    the specific id doesnt exists.*/
     if (rec[heap_iterator->current_record].id == heap_iterator->id)
     {
-      *record = rec;
+      *record = malloc(sizeof(Record));
+      **record = rec[heap_iterator->current_record];
     }
 
     if (heap_iterator->current_record  == heap_iterator->header_info->records_per_block -1)
