@@ -182,19 +182,20 @@ HeapFileIterator HeapFile_CreateIterator(int file_handle, HeapFileHeader* header
 int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
 {
   *record = NULL;
-  BF_Block *block;
   Record *current_record;
   char *data;
+  
   unsigned int number_of_blocks;
   CALL_BF(BF_GetBlockCounter(heap_iterator->file_handle, &number_of_blocks), 0);
   
   do
   {
+    BF_Block *block;
     BF_Block_Init(&block);
-    CALL_BF(BF_GetBlock(heap_iterator->file_handle, heap_iterator->current_block, block), 0);
-    data = BF_Block_GetData(block);
 
-    
+    CALL_BF(BF_GetBlock(heap_iterator->file_handle, heap_iterator->current_block, block), 0);
+
+    data = BF_Block_GetData(block);
 
     current_record = (Record *)(data + heap_iterator->current_record * heap_iterator->header_info->size_of_record);
     
@@ -218,11 +219,11 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     {
       heap_iterator->current_record += 1;
     }
-    
+     CALL_BF(BF_UnpinBlock(block), 0);
+    BF_Block_Destroy(&block);
+
   } while (*record == NULL);
 
-   CALL_BF(BF_UnpinBlock(block), 0);
-  BF_Block_Destroy(&block);
-
+  
   return 1;
 }
