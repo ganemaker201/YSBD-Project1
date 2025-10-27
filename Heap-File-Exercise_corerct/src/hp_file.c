@@ -29,7 +29,7 @@ int HeapFile_Create(const char* fileName)
 
   int file_handle;
 
-  //creating and opening the file to store file header
+  //creating and openning the file to store file header
   CALL_BF(BF_CreateFile(fileName),0);
   
   CALL_BF(BF_OpenFile(fileName, &file_handle),0); 
@@ -86,12 +86,12 @@ int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** heade
   // get block 0 (header)
   CALL_BF(BF_GetBlock(*file_handle, 0, block), 0);
 
-  // pointer to HeapFileHeader
-  *header_info = (HeapFileHeader *) BF_Block_GetData(block);
-
+  // temporary pointer to HeapFileHeader
   HeapFileHeader *temp = (HeapFileHeader *) BF_Block_GetData(block);
+
+  //store header in heap in order to unpin block and free memory block
   *header_info = malloc(sizeof(HeapFileHeader));
-  memcpy(*header_info, temp, sizeof(HeapFileHeader));
+  **header_info = *temp;
 
 
   CALL_BF(BF_UnpinBlock(block), 0);
@@ -104,10 +104,15 @@ int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** heade
 
 }
 
-int HeapFile_Close(int file_handle)
+int HeapFile_Close(int file_handle, HeapFileHeader * hp_info)
 {
+    //free memory used in malloc for header
+    free(hp_info);
+
+    //close file and decrease the counter for opened files
     CALL_BF(BF_CloseFile(file_handle), 0);
     Opened -= 1;
+
     return 1;
 }
 
