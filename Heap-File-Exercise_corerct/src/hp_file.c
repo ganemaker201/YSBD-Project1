@@ -189,13 +189,15 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
   
   unsigned int number_of_blocks;
   CALL_BF(BF_GetBlockCounter(heap_iterator->file_handle, &number_of_blocks), 0);
+
+  //initialize block and get the curent block data
+    BF_Block *block;
+    BF_Block_Init(&block);
   
   //dont stop until we find a record
   do
   {
-    //initialize block and get the curent block data
-    BF_Block *block;
-    BF_Block_Init(&block);
+   
 
     CALL_BF(BF_GetBlock(heap_iterator->file_handle, heap_iterator->current_block, block), 0);
 
@@ -232,10 +234,9 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     }
     
     CALL_BF(BF_UnpinBlock(block), 0);
-    BF_Block_Destroy(&block);
 
   } while (*record == NULL);
 
-  
+  BF_Block_Destroy(&block);
   return 1;
 }
