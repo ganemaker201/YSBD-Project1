@@ -29,8 +29,8 @@ typedef struct HeapFileIterator{
     int file_handle;
     HeapFileHeader *header_info;
     int id;                     // the id we are looking for
-    unsigned int current_block; // block 0 is header
-    int current_record;         // the record in the current block
+    unsigned int current_block;
+    int current_record;         // the index of record in the current block
 } HeapFileIterator;
 
 #endif /* HP_FILE_STRUCTS_H */

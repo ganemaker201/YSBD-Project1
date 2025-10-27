@@ -167,7 +167,7 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 }
 
 
-HeapFileIterator HeapFile_CreateIterator(    int file_handle, HeapFileHeader* header_info, int id)
+HeapFileIterator HeapFile_CreateIterator(int file_handle, HeapFileHeader* header_info, int id)
 {
   HeapFileIterator out;
 
