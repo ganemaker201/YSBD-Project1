@@ -181,15 +181,19 @@ HeapFileIterator HeapFile_CreateIterator(int file_handle, HeapFileHeader* header
 
 int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
 {
+  //initialize record pointer
   *record = NULL;
+
   Record *rec;
   char *data;
   
   unsigned int number_of_blocks;
   CALL_BF(BF_GetBlockCounter(heap_iterator->file_handle, &number_of_blocks), 0);
   
+  //dont stop until we find a record
   do
   {
+    //initialize block and get the curent block data
     BF_Block *block;
     BF_Block_Init(&block);
 
@@ -199,6 +203,13 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
 
     rec = (Record *)data;
     
+    /*traverse curent block records one by one to see if the id exists
+    if found store it to the pointer otherwise continue with the next
+    record.If the index of records in our current block exceeds it's 
+    capacity then we have to go to the next block and reinitialize 
+    current_record  to 0.If we are in the last block of the file and
+    we have traversed all of its records then the specific id doesnt 
+    exists.*/
     if (rec[heap_iterator->current_record].id == heap_iterator->id)
     {
       *record = rec;
@@ -208,7 +219,7 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     {
       if (heap_iterator->current_block  == number_of_blocks - 1)
       {
-         CALL_BF(BF_UnpinBlock(block), 0);
+        CALL_BF(BF_UnpinBlock(block), 0);
         BF_Block_Destroy(&block);
         return 0;
       }
@@ -219,7 +230,8 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     {
       heap_iterator->current_record += 1;
     }
-     CALL_BF(BF_UnpinBlock(block), 0);
+    
+    CALL_BF(BF_UnpinBlock(block), 0);
     BF_Block_Destroy(&block);
 
   } while (*record == NULL);
