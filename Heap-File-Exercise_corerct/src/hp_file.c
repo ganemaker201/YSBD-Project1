@@ -51,8 +51,8 @@ int HeapFile_Create(const char* fileName)
   rec->records_per_block = BF_BLOCK_SIZE/sizeof(Record);
   rec->last_free_record = 0;
 
-  //since we changed the block set it dirty
-  //and unpin it from buffer to reuse memory
+  /*since we changed the block set it dirty
+  and unpin it from buffer to reuse memory*/
   BF_Block_SetDirty(block);
   CALL_BF(BF_UnpinBlock(block),0);
 
@@ -132,12 +132,11 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   
   CALL_BF(BF_GetBlockCounter(file_handle, &blocks_num),0);
 
-
+  /*if we have only the header block or the index of records in our last block
+  exceeds it's capacity then we have to allocate a new block increase the number
+  of blocks in buffer and reinitialize last_free_record to 0*/
   if (blocks_num == 1 || hp_info->last_free_record > hp_info->records_per_block - 1 )
   {
-
-    //printf("Allocating new block\n");
-
     CALL_BF(BF_AllocateBlock(file_handle, block),0);
     
     blocks_num += 1;
@@ -146,6 +145,8 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 
   }
 
+  /*take the data of last block to store the new record in our free 
+  spot and then increase the index of records in the current block*/
   CALL_BF(BF_GetBlock(file_handle, blocks_num-1, block), 0);  
 
   data = BF_Block_GetData(block);  
@@ -161,24 +162,6 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
   CALL_BF(BF_UnpinBlock(block), 0);
 
   BF_Block_Destroy(&block);
-
-
-
-
-  // CALL_BF(BF_GetBlock(file_handle, 0, block), 0);
-
-  // data  = BF_Block_GetData(block);  
-
-  // HeapFileHeader * rec1 = data;
-
-  
-  // rec1->last_free_record = hp_info->last_free_record;
-
-  // BF_Block_SetDirty(block);
-
-  // CALL_BF(BF_UnpinBlock(block), 0);
-
-  
 
   return 1;
 }
