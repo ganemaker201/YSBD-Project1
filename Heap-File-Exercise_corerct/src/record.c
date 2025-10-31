@@ -45,9 +45,9 @@ const char* cities[] = {
 
 
 Record randomRecord(){
-    Record record;
+    Record record = {0};
     // create a record
-    record.id = (rand() % 1000);
+    record.id = (rand() % 10);
     int r = rand() % (sizeof(names) / sizeof(names[0]));
     memcpy(record.name, names[r], strlen(names[r]) + 1);
     //

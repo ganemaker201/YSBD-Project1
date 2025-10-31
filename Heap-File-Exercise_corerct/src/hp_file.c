@@ -63,17 +63,9 @@ int HeapFile_Create(const char* fileName)
   return 1;
 }
 
-//global variable for how many files are opened at the same time 
-int Opened = 0;
-
 int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** header_info)
 {
 
-  //if we have exceeded opened files limit then print error
-  if (Opened >= BF_MAX_OPEN_FILES){
-      printf("Error: Maximum number of open files reached\n");
-      return 0;
-  }
 
   //open file
   CALL_BF(BF_OpenFile(fileName, file_handle), 0);
@@ -91,14 +83,19 @@ int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** heade
 
   //store header in heap in order to unpin block and free memory block
   *header_info = malloc(sizeof(HeapFileHeader));
-  **header_info = *temp;
 
+  if (*header_info == NULL) {
+      
+      CALL_BF(BF_UnpinBlock(block), 0);
+      BF_Block_Destroy(&block);
+      CALL_BF(BF_CloseFile(*file_handle), 0);
+      return 0;
+  }
+
+  memcpy(*header_info, temp, sizeof(HeapFileHeader));
 
   CALL_BF(BF_UnpinBlock(block), 0);
   BF_Block_Destroy(&block);
-
-  //if opened successfully increase counter
-  Opened += 1;
 
   return 1;
 
@@ -106,14 +103,35 @@ int HeapFile_Open(const char *fileName, int *file_handle, HeapFileHeader** heade
 
 int HeapFile_Close(int file_handle, HeapFileHeader * hp_info)
 {
-    //free memory used in malloc for header
-    free(hp_info);
 
-    //close file and decrease the counter for opened files
-    CALL_BF(BF_CloseFile(file_handle), 0);
-    Opened -= 1;
+  //Change data in header_data from hp_info
 
-    return 1;
+  void * header_data;
+
+  BF_Block * header_block;
+
+  BF_Block_Init(&header_block);   
+
+  CALL_BF(BF_GetBlock(file_handle, 0, header_block), 0);  
+
+  header_data = BF_Block_GetData(header_block);  
+
+  memcpy(header_data, hp_info, sizeof(HeapFileHeader));
+
+  BF_Block_SetDirty(header_block);
+
+  CALL_BF(BF_UnpinBlock(header_block), 0);
+
+  BF_Block_Destroy(&header_block);
+
+  //free memory used in malloc for header
+  free(hp_info);
+
+  //close file and decrease the counter for opened files
+  CALL_BF(BF_CloseFile(file_handle), 0);
+
+  return 1;
+
 }
 
 
@@ -122,6 +140,8 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 {
 
   void * data;
+
+  
 
   int blocks_num;
 
@@ -147,6 +167,7 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 
   /*take the data of last block to store the new record in our free 
   spot and then increase the index of records in the current block*/
+
   CALL_BF(BF_GetBlock(file_handle, blocks_num-1, block), 0);  
 
   data = BF_Block_GetData(block);  
@@ -155,13 +176,17 @@ int HeapFile_InsertRecord(int file_handle, HeapFileHeader *hp_info, const Record
 
   rec[hp_info->last_free_record] = record;
 
-  hp_info->last_free_record +=1;
-
   BF_Block_SetDirty(block);
 
   CALL_BF(BF_UnpinBlock(block), 0);
 
-  BF_Block_Destroy(&block);
+  BF_Block_Destroy(&block); 
+
+  //----------------------------------------------------------//
+
+  //Change data in  hp_info
+
+  hp_info->last_free_record +=1;
 
   return 1;
 }
@@ -191,8 +216,8 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
   CALL_BF(BF_GetBlockCounter(heap_iterator->file_handle, &number_of_blocks), 0);
 
   //initialize block and get the curent block data
-    BF_Block *block;
-    BF_Block_Init(&block);
+  BF_Block *block;
+  BF_Block_Init(&block);
   
   //dont stop until we find a record
   do
@@ -209,28 +234,41 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
     if found allocate memory to heap and store it to the pointer content
     otherwise continue with the next record.If the index of records in 
     our current block exceeds it's capacity then we have to go to the 
-    next block and reinitialize current_record  to 0.If we are in the 
+    next block and reinitialize current_record  to 0. If we are in the 
     last block of the file and we have traversed all of its records then 
     the specific id doesnt exists.*/
+
     if (rec[heap_iterator->current_record].id == heap_iterator->id)
     {
+      //allocate memory for record to return
       *record = malloc(sizeof(Record));
-      **record = rec[heap_iterator->current_record];
-    }
-
-    if (heap_iterator->current_record  == heap_iterator->header_info->records_per_block -1)
-    {
-      if (heap_iterator->current_block  == number_of_blocks - 1)
+      if (*record == NULL)
       {
         CALL_BF(BF_UnpinBlock(block), 0);
         BF_Block_Destroy(&block);
         return 0;
       }
+      **record = rec[heap_iterator->current_record];
+    }
+
+    if (heap_iterator->current_record  >= heap_iterator->header_info->records_per_block -1)
+    {
+      //reached maximum records in current block
+      if (heap_iterator->current_block  >= number_of_blocks - 1)
+      {
+        //reached maximum blocks, no more to traverse
+        CALL_BF(BF_UnpinBlock(block), 0);
+        BF_Block_Destroy(&block);
+        return 0;
+      }
+
+      //going to next block
       heap_iterator->current_block += 1;
       heap_iterator->current_record = 0;
     }
     else
     {
+       //going to next record in current block
       heap_iterator->current_record += 1;
     }
     
@@ -239,5 +277,7 @@ int HeapFile_GetNextRecord(HeapFileIterator *heap_iterator, Record **record)
   } while (*record == NULL);
 
   BF_Block_Destroy(&block);
+
+
   return 1;
 }

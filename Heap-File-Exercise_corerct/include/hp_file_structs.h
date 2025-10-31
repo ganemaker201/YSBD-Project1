@@ -18,7 +18,7 @@
 typedef struct HeapFileHeader {
     unsigned int size_of_record ;
     unsigned int records_per_block;
-    unsigned int last_free_record; //the index of first record to write in current block 
+    unsigned int last_free_record; //the index of first free record to write in current block 
 
 } HeapFileHeader;
 

@@ -35,7 +35,7 @@ void search_records(){
   int file_handle;
   HeapFileHeader* header_info=NULL;
   HeapFile_Open(FILE_NAME, &file_handle,&header_info);
-  int id = 598;
+  int id = 9; // you can change it if you want
   printf("Print records with id=%d\n",id);
   HeapFileIterator iterator = HeapFile_CreateIterator(file_handle,header_info,id);
   Record ans;
@@ -56,11 +56,18 @@ void search_records(){
 int main() {
   BF_Init(LRU);
   HeapFile_Create(FILE_NAME);
-
+  
   insert_records();
 
   search_records();
- 
+
+  int file_handle;
+  HeapFileHeader* header_info=NULL;
+  HeapFile_Open(FILE_NAME, &file_handle,&header_info);
+  printf("last_free_record=%d\n",header_info->last_free_record);
+
+  HeapFile_Close(file_handle,header_info);
+
 
   BF_Close();
 
